@@ -6,20 +6,33 @@ import AuthImage from "./images/index";
 import JsonFormatter from "react-json-formatter";
 
 function App() {
-  const [client, setClient] = useState({
-    client_id: "",
-    client_secret: "",
-    scope: "openid profile",
-    response_type: "code",
-    redirect_uri: "",
-    authority: "https://oidc.dentity.com/oidc",
-  });
+  const clientData = localStorage.getItem("client");
+
+  const [client, setClient] = useState(
+    clientData
+      ? JSON.parse(clientData)
+      : {
+          client_id: "",
+          client_secret: "",
+          scope: "openid profile",
+          response_type: "code",
+          redirect_uri: "",
+          authority: "https://oidc.dentity.com/oidc",
+        }
+  );
 
   const [responseData, setResponseData] = useState(null);
+  const [verifyVpTokenResponse, setVerifyVpTokenResponse] = useState(null);
+  const [verifyVCPEndpoint, setVerifyVCPEndpoint] = useState(
+    "https://api.dentity.com/core/api/v1/credential/proofs/verify"
+  );
+  const { code } = queryString.parse(window.location.search);
 
   useEffect(() => {
-    handleGetIdToken();
-  }, []);
+    if (code) {
+      handleGetIdToken();
+    }
+  }, [code]);
 
   const stringifiedParams = queryString.stringify({
     client_id: client.client_id,
@@ -31,7 +44,6 @@ function App() {
   const logoutLink = `${client.authority}/remove-session`;
 
   const handleGetIdToken = async () => {
-    const { code } = queryString.parse(window.location.search);
     if (code) {
       const response = await axios({
         method: "post",
@@ -48,9 +60,22 @@ function App() {
       setResponseData(response.data);
     }
   };
+  const verifyVerifiableCredentialPresentation = async () => {
+    if (responseData["vp_token"]) {
+      const response = await axios({
+        method: "post",
+        url: verifyVCPEndpoint,
+        data: {
+          proofs: responseData["vp_token"],
+        },
+      });
+      setVerifyVpTokenResponse(response.data);
+    }
+  };
 
   const handleSubmit = async () => {
     window.location.href = authLink;
+    localStorage.setItem("client", JSON.stringify(client));
   };
 
   const handleChangeClientConfiguration = (e) => {
@@ -118,6 +143,7 @@ function App() {
                 name="redirect_uri"
                 value={client.redirect_uri}
                 onChange={handleChangeClientConfiguration}
+
               />
 
               <div className="container_btn" style={{ display: "flex" }}>
@@ -144,7 +170,7 @@ function App() {
             </form>
           </div>
           <div className="ctn-right">
-            <div className="titleOIDC">Response OIDC</div>
+            <div className="titleOIDC">OIDC Response(VCP) </div>
             <div
               style={{
                 maxHeight: "55vh",
@@ -158,6 +184,59 @@ function App() {
             >
               <JsonFormatter
                 json={responseData}
+                tabWith={4}
+                jsonStyle={{
+                  propertyStyle: { color: "red" },
+                  stringStyle: { color: "green" },
+                  numberStyle: { color: "darkorange" },
+                }}
+              />
+            </div>
+            <div className="container_btn" style={{ marginTop: 10 }}>
+              <div style={{ display: "block" }}>
+                <label className="label">
+                  Verify VCP Endpoint (
+                  <a href="https://docs.dentity.com/reference/wallets-and-credentials/api-endpoints/credential#verify-credential-proof">
+                    Dentity's Documentation
+                  </a>
+                  )
+                </label>
+                <input
+                  required
+                  value={verifyVCPEndpoint}
+                  name="authority"
+                  style={{ width: "100%" }}
+                  onChange={(e) => {
+                    setVerifyVCPEndpoint(e.target.value);
+                  }}
+                  className="input"
+                />
+              </div>
+              <button
+                className="btn-submit"
+                style={{ width: "100%", paddingLeft: 20, paddingRight: 20 }}
+                onClick={verifyVerifiableCredentialPresentation}
+                disabled={!responseData}
+              >
+                Verify Verifiable Credential Presentation
+              </button>
+            </div>
+          </div>
+          <div className="ctn-right">
+            <div className="titleOIDC">Verify Response</div>
+            <div
+              style={{
+                maxHeight: "55vh",
+                border: "1px solid #c9c9c9",
+                width: "90%",
+                padding: 10,
+                borderRadius: 5,
+                overflow: "scroll",
+                minHeight: "55vh",
+              }}
+            >
+              <JsonFormatter
+                json={verifyVpTokenResponse}
                 tabWith={4}
                 jsonStyle={{
                   propertyStyle: { color: "red" },
