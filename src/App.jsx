@@ -73,8 +73,12 @@ function App() {
     }
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (e) => {
     window.location.href = authLink;
+    client.scope = client.scope
+      .split(" ")
+      .filter((i) => i.length)
+      .join(" ");
     localStorage.setItem("client", JSON.stringify(client));
   };
 
@@ -143,7 +147,14 @@ function App() {
                 name="redirect_uri"
                 value={client.redirect_uri}
                 onChange={handleChangeClientConfiguration}
-
+              />
+              <label className="label">Scope (Separate Data With Comma)</label>
+              <input
+                className="input"
+                required
+                name="scope"
+                value={client.scope}
+                onChange={handleChangeClientConfiguration}
               />
 
               <div className="container_btn" style={{ display: "flex" }}>
